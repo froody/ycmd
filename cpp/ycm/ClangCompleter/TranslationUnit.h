@@ -29,10 +29,13 @@
 #include <mutex>
 #include <string>
 #include <vector>
+#include <memory>
 
 namespace YouCompleteMe {
 
 struct CompletionData;
+
+typedef std::shared_ptr < CXCodeCompleteResults > CodeCompleteResultsWrap;
 
 class TranslationUnit {
 public:
@@ -57,6 +60,11 @@ public:
   YCM_DLL_EXPORT bool IsCurrentlyUpdating() const;
 
   std::vector< Diagnostic > Reparse(
+    const std::vector< UnsavedFile > &unsaved_files );
+
+  YCM_DLL_EXPORT CodeCompleteResultsWrap CompletionForLocation(
+    int line,
+    int column,
     const std::vector< UnsavedFile > &unsaved_files );
 
   YCM_DLL_EXPORT std::vector< CompletionData > CandidatesForLocation(

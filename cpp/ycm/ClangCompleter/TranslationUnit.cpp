@@ -64,9 +64,6 @@ void EnsureCompilerNamePresent( std::vector< const char * > &flags ) {
 
 }  // unnamed namespace
 
-typedef shared_ptr <
-remove_pointer< CXCodeCompleteResults >::type > CodeCompleteResultsWrap;
-
 TranslationUnit::TranslationUnit()
   : filename_( "" ),
     clang_translation_unit_( NULL ) {
@@ -145,15 +142,15 @@ std::vector< Diagnostic > TranslationUnit::Reparse(
   return latest_diagnostics_;
 }
 
-
-std::vector< CompletionData > TranslationUnit::CandidatesForLocation(
+CodeCompleteResultsWrap TranslationUnit::CompletionForLocation(
   int line,
   int column,
-  const std::vector< UnsavedFile > &unsaved_files ) {
+  const std::vector< UnsavedFile > &unsaved_files )
+{
   unique_lock< mutex > lock( clang_access_mutex_ );
 
   if ( !clang_translation_unit_ )
-    return std::vector< CompletionData >();
+    return CodeCompleteResultsWrap(nullptr);
 
   std::vector< CXUnsavedFile > cxunsaved_files =
     ToCXUnsavedFiles( unsaved_files );
@@ -180,9 +177,19 @@ std::vector< CompletionData > TranslationUnit::CandidatesForLocation(
                           CompletionOptions() ),
     clang_disposeCodeCompleteResults );
 
-  std::vector< CompletionData > candidates = ToCompletionDataVector(
-                                               results.get() );
-  return candidates;
+  return results;
+}
+
+std::vector< CompletionData > TranslationUnit::CandidatesForLocation(
+  int line,
+  int column,
+  const std::vector< UnsavedFile > &unsaved_files ) {
+
+  CodeCompleteResultsWrap results = CompletionForLocation(line, column, unsaved_files);
+  {
+    unique_lock<mutex> lock(clang_access_mutex_);
+    return ToCompletionDataVector(results.get());
+  }
 }
 
 Location TranslationUnit::GetDeclarationLocation(

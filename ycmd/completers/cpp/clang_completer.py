@@ -48,6 +48,7 @@ from ycmd.completers.cpp.ephemeral_values_set import EphemeralValuesSet
 from ycmd.completers.general.filename_completer import (
     GenerateCandidatesForPaths )
 from ycmd.responses import NoExtraConfDetected, UnknownExtraConf
+from ycm_core import CompletionContext
 
 CLANG_FILETYPES = set( [ 'c', 'cpp', 'objc', 'objcpp' ] )
 PARSING_FILE_MESSAGE = 'Still parsing file, no completions yet.'
@@ -71,6 +72,8 @@ class ClangCompleter( Completer ):
     self._diagnostic_store = None
     self._files_being_compiled = EphemeralValuesSet()
     self._logger = logging.getLogger( __name__ )
+    self._cxresult = None
+    self._cxcontext = None
 
 
   def SupportedFiletypes( self ):
@@ -105,6 +108,31 @@ class ClangCompleter( Completer ):
   def ShouldUseNowInner( self, request_data ):
     if self.ShouldCompleteIncludeStatement( request_data ):
       return True
+
+    filename = request_data[ 'filepath' ]
+    if not filename:
+      return False
+
+    with self._files_being_compiled.GetExclusive( filename ):
+      line = request_data[ 'line_num' ]
+      column = request_data[ 'start_column' ]
+      files = self.GetUnsavedFilesVector( request_data )
+      flags = self._FlagsForRequest( request_data )
+      if not flags:
+        raise RuntimeError( NO_COMPILE_FLAGS_MESSAGE )
+      self._logger.debug('clang wat %s, %d, %d, %s, %s', ToCppStringCompatible(
+          filename ), line, column, files, flags)
+      self._cxresult = self._completer.CompletionForLocationInFile (
+          ToCppStringCompatible( filename ),
+          line,
+          column,
+          files,
+          flags )
+      self._cxcontext = self._completer.ContextFromCompletion(self._cxresult)
+      if self._cxcontext & (CompletionContext.ObjCInstanceMessage | CompletionContext.ObjCClassMessage):
+        return True;
+      if self._completer.NumCandidatesFromCompletion(self._cxresult) > 0:
+        return True;
     return super( ClangCompleter, self ).ShouldUseNowInner( request_data )
 
 
@@ -164,17 +192,12 @@ class ClangCompleter( Completer ):
     line = request_data[ 'line_num' ]
     column = request_data[ 'start_column' ]
     with self._files_being_compiled.GetExclusive( filename ):
-      results = self._completer.CandidatesForLocationInFile(
-          ToCppStringCompatible( filename ),
-          line,
-          column,
-          files,
-          flags )
+      results = self._completer.CandidatesFromCompletion( self._cxresult )
 
     if not results:
       raise RuntimeError( NO_COMPLETIONS_MESSAGE )
 
-    return [ ConvertCompletionData( x ) for x in results ]
+    return [ self.ConvertCompletionData( x ) for x in results ]
 
 
   def GetSubcommandsMap( self ):
@@ -468,15 +491,20 @@ class ClangCompleter( Completer ):
     return self._flags.FlagsForFile( filename, client_data = client_data )
 
 
-def ConvertCompletionData( completion_data ):
-  return responses.BuildCompletionData(
-    insertion_text = completion_data.TextToInsertInBuffer(),
-    menu_text = completion_data.MainCompletionText(),
-    extra_menu_info = completion_data.ExtraMenuInfo(),
-    kind = completion_data.kind_.name,
-    detailed_info = completion_data.DetailedInfoForPreviewWindow(),
-    extra_data = ( { 'doc_string': completion_data.DocString() }
-                   if completion_data.DocString() else None ) )
+  def ConvertCompletionData( self, completion_data ):
+    menu_text = completion_data.MainCompletionText()
+    if self._cxcontext & (CompletionContext.ObjCInstanceMessage | CompletionContext.ObjCClassMessage):
+      objcSelector = self._completer.ObjcSelectorFromCompletion( self._cxresult )
+      if objcSelector and menu_text.startswith(objcSelector):
+         menu_text = menu_text.replace( objcSelector, '' )
+    return responses.BuildCompletionData(
+      insertion_text = completion_data.TextToInsertInBuffer(),
+      menu_text = menu_text,
+      extra_menu_info = completion_data.ExtraMenuInfo(),
+      kind = completion_data.kind_.name,
+      detailed_info = completion_data.DetailedInfoForPreviewWindow(),
+      extra_data = ( { 'doc_string': completion_data.DocString() }
+                     if completion_data.DocString() else None ) )
 
 
 def DiagnosticsToDiagStructure( diagnostics ):

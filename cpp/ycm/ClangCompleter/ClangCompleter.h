@@ -59,6 +59,25 @@ public:
     const std::vector< UnsavedFile > &unsaved_files,
     const std::vector< std::string > &flags );
 
+  YCM_DLL_EXPORT std::vector< CompletionData > CandidatesFromCompletion(
+    std::shared_ptr<CXCodeCompleteResults> results );
+
+  YCM_DLL_EXPORT int NumCandidatesFromCompletion(
+    std::shared_ptr<CXCodeCompleteResults> results );
+
+  YCM_DLL_EXPORT CXCompletionContext ContextFromCompletion(
+    std::shared_ptr<CXCodeCompleteResults> results );
+
+  YCM_DLL_EXPORT std::string ObjcSelectorFromCompletion(
+    std::shared_ptr<CXCodeCompleteResults> results );
+
+  YCM_DLL_EXPORT std::shared_ptr< CXCodeCompleteResults > CompletionForLocationInFile(
+    const std::string &filename,
+    int line,
+    int column,
+    const std::vector< UnsavedFile > &unsaved_files,
+    const std::vector< std::string > &flags );
+
   YCM_DLL_EXPORT Location GetDeclarationLocation(
     const std::string &filename,
     int line,

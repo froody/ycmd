@@ -28,6 +28,7 @@ from ycmd.utils import ForceSemanticCompletion
 from ycmd.completers import completer_utils
 from ycmd.responses import NoDiagnosticSupport
 from future.utils import with_metaclass
+import logging
 
 NO_USER_COMMANDS = 'This completer does not define any commands.'
 
@@ -189,12 +190,14 @@ class Completer( with_metaclass( abc.ABCMeta, object ) ):
 
 
   def ShouldUseNowInner( self, request_data ):
+    logging.debug("ShouldUseNow " + str(request_data))
     if not self.prepared_triggers:
       return False
     current_line = request_data[ 'line_value' ]
     start_codepoint = request_data[ 'start_codepoint' ] - 1
     column_codepoint = request_data[ 'column_codepoint' ] - 1
     filetype = self._CurrentFiletype( request_data[ 'filetypes' ] )
+    #return True
 
     return self.prepared_triggers.MatchesForFiletype(
         current_line, start_codepoint, column_codepoint, filetype )
@@ -216,6 +219,7 @@ class Completer( with_metaclass( abc.ABCMeta, object ) ):
       return []
 
     candidates = self._GetCandidatesFromSubclass( request_data )
+#    logging.debug("ComputeCandidates " + str(candidates))
     return self.FilterAndSortCandidates( candidates, request_data[ 'query' ] )
 
 

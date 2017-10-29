@@ -20,6 +20,7 @@
 #include "Result.h"
 #include "Candidate.h"
 #include "TranslationUnit.h"
+#include "ClangHelpers.h"
 #include "CandidateRepository.h"
 #include "CompletionData.h"
 #include "Utils.h"
@@ -98,6 +99,60 @@ std::vector< Diagnostic > ClangCompleter::UpdateTranslationUnit(
   }
 
   return std::vector< Diagnostic >();
+}
+std::vector<CompletionData>
+ClangCompleter::CandidatesFromCompletion(std::shared_ptr<CXCodeCompleteResults> results)
+{
+    // TODO(tom)
+  //unique_lock< mutex > lock( clang_access_mutex_ );
+  return ToCompletionDataVector(results.get());
+}
+
+int
+ClangCompleter::NumCandidatesFromCompletion(std::shared_ptr<CXCodeCompleteResults> results)
+{
+  return results->NumResults;
+}
+
+CXCompletionContext
+ClangCompleter::ContextFromCompletion(std::shared_ptr<CXCodeCompleteResults> results)
+{
+    // TODO(tom)
+  //unique_lock< mutex > lock( clang_access_mutex_ );
+  return static_cast<CXCompletionContext>(clang_codeCompleteGetContexts(results.get()));
+}
+
+std::string
+ClangCompleter::ObjcSelectorFromCompletion(std::shared_ptr<CXCodeCompleteResults> results)
+{
+    // TODO(tom)
+  //unique_lock< mutex > lock( clang_access_mutex_ );
+  return CXStringToString( clang_codeCompleteGetObjCSelector( results.get() ) );
+}
+
+#if 0
+unsigned clang_codeCompleteGetNumDiagnostics(CXCodeCompleteResults *Results);
+CXDiagnostic clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *Results,
+unsigned long long clang_codeCompleteGetContexts(
+enum CXCursorKind clang_codeCompleteGetContainerKind(
+CXString clang_codeCompleteGetContainerUSR(CXCodeCompleteResults *Results);
+#endif
+
+std::shared_ptr<CXCodeCompleteResults>
+ClangCompleter::CompletionForLocationInFile(const std::string &filename, int line, int column,
+                            const std::vector<UnsavedFile> &unsaved_files,
+                            const std::vector<std::string> &flags)
+{
+  ReleaseGil unlock;
+  shared_ptr< TranslationUnit > unit =
+    translation_unit_store_.GetOrCreate( filename, unsaved_files, flags );
+
+  if ( !unit )
+    return std::shared_ptr<CXCodeCompleteResults>(nullptr);
+
+  return unit->CompletionForLocation( line,
+                                      column,
+                                      unsaved_files );
 }
 
 
