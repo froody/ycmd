@@ -73,6 +73,14 @@ def OpenForStdHandle( filepath ):
     return open( filepath, mode = 'wb', buffering = 0 )
   return open( filepath, mode = 'w', buffering = 1 )
 
+# Swap the destination of two files, keeping the fileno() the same so that
+# stdout and stderr are redirected for any C code that wants to write to the log
+def SwapFileDescriptors( file1, file2 ):
+    tmp = os.dup( file2.fileno() )
+    os.dup2( file1.fileno(), file2.fileno() )
+    os.dup2( tmp, file1.fileno() )
+    os.close( tmp )
+
 
 def CreateLogfile( prefix = '' ):
   with tempfile.NamedTemporaryFile( prefix = prefix,

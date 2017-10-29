@@ -42,7 +42,7 @@ import base64
 
 from ycmd import extra_conf_store, user_options_store, utils
 from ycmd.hmac_plugin import HmacPlugin
-from ycmd.utils import ToBytes, ReadFile, OpenForStdHandle
+from ycmd.utils import ToBytes, ReadFile, OpenForStdHandle, SwapFileDescriptors
 from ycmd.wsgi_server import StoppableWSGIServer
 
 
@@ -64,21 +64,18 @@ def SetUpSignalHandler():
 
 def CleanUpLogfiles( stdout, stderr, keep_logfiles ):
   # We reset stderr & stdout, just in case something tries to use them
-  if stderr:
-    tmp = sys.stderr
-    sys.stderr = sys.__stderr__
-    tmp.close()
   if stdout:
-    tmp = sys.stdout
-    sys.stdout = sys.__stdout__
-    tmp.close()
+    SwapFileDescriptors ( stdout, sys.stdout )
+    stdout.close()
+  if stderr:
+    SwapFileDescriptors ( stderr, sys.stderr )
+    stdout.close()
 
   if not keep_logfiles:
     if stderr:
-      utils.RemoveIfExists( stderr )
+      utils.RemoveIfExists( stderr.name() )
     if stdout:
-      utils.RemoveIfExists( stdout )
-
+      utils.RemoveIfExists( stdout.name() )
 
 def PossiblyDetachFromTerminal():
   # If not on windows, detach from controlling terminal to prevent
@@ -147,10 +144,14 @@ def CloseStdin():
 def Main():
   args = ParseArguments()
 
+  replacementStdout = None
+  replacementStderr = None
   if args.stdout is not None:
-    sys.stdout = OpenForStdHandle( args.stdout )
+    replacementStdout = OpenForStdHandle( args.stdout )
+    SwapFileDescriptors( replacementStdout, sys.stdout )
   if args.stderr is not None:
-    sys.stderr = OpenForStdHandle( args.stderr )
+    replacementStderr = OpenForStdHandle( args.stderr )
+    SwapFileDescriptors( replacementStderr, sys.stderr )
 
   SetupLogging( args.log )
   options, hmac_secret = SetupOptions( args.options_file )
@@ -177,8 +178,8 @@ def Main():
   SetUpSignalHandler()
   # Functions registered by the atexit module are called at program termination
   # in last in, first out order.
-  atexit.register( CleanUpLogfiles, args.stdout,
-                                    args.stderr,
+  atexit.register( CleanUpLogfiles, replacementStdout,
+                                    replacementStderr,
                                     args.keep_logfiles )
   atexit.register( handlers.ServerCleanup )
   handlers.app.install( WatchdogPlugin( args.idle_suicide_seconds,
