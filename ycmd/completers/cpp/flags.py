@@ -276,7 +276,7 @@ def _SysRootSpecifedIn( flags ):
 
 
 def PrepareFlagsForClang( flags, filename, add_extra_clang_flags = True ):
-  flags = _AddLanguageFlagWhenAppropriate( flags )
+  flags = _AddLanguageFlagWhenAppropriate( flags, filename )
   flags = _RemoveXclangFlags( flags )
   flags = _RemoveUnusedFlags( flags, filename )
   if add_extra_clang_flags:
@@ -319,7 +319,10 @@ def _RemoveFlagsPrecedingCompiler( flags ):
   return flags[ :-1 ]
 
 
-def _AddLanguageFlagWhenAppropriate( flags ):
+def _FileIsObjC( filename ):
+    return filename.endswith('.m') or filename.endswith('.mm')
+
+def _AddLanguageFlagWhenAppropriate( flags, filename ):
   """When flags come from the compile_commands.json file, the flag preceding the
   first flag starting with a dash is usually the path to the compiler that
   should be invoked. Since LibClang does not deduce the language from the
@@ -334,11 +337,12 @@ def _AddLanguageFlagWhenAppropriate( flags ):
   first_flag = flags[ 0 ]
 
   # If there's already a -x directive, don't add another one
-  if '-x' in flags:
-    return flags
+  for flag in flags:
+      if flag.startswith('-x'):
+          return flags
 
   if ( not first_flag.startswith( '-' ) and
-       CPP_COMPILER_REGEX.search( first_flag ) ):
+       CPP_COMPILER_REGEX.search( first_flag ) ) and not _FileIsObjC( filename ):
     return [ first_flag, '-x', 'c++' ] + flags[ 1: ]
   return flags
 
