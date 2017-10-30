@@ -19,6 +19,8 @@
 #include "ClangUtils.h"
 
 #include <utility>
+#include <iostream>
+#include <fstream>
 
 namespace YouCompleteMe {
 
@@ -245,6 +247,8 @@ void CompletionData::ExtractDataFromChunk( CXCompletionString completion_string,
       break;
 
     case CXCompletionChunk_Placeholder:
+      ulti_snip_ += "${" + std::to_string(ulti_snip_placeholeder_index_++) +
+                    ":" + ChunkToString(completion_string, chunk_num) + "}";
       saw_placeholder = true;
       break;
 
@@ -258,6 +262,8 @@ void CompletionData::ExtractDataFromChunk( CXCompletionString completion_string,
     case CXCompletionChunk_HorizontalSpace:
       if ( !saw_placeholder ) {
         original_string_ += ChunkToString( completion_string, chunk_num );
+      } else {
+        ulti_snip_ += ChunkToString(completion_string, chunk_num);
       }
 
       break;

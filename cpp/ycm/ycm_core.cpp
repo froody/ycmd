@@ -188,6 +188,7 @@ BOOST_PYTHON_MODULE(ycm_core)
     .def( "DetailedInfoForPreviewWindow",
           &CompletionData::DetailedInfoForPreviewWindow )
     .def( "DocString", &CompletionData::DocString )
+    .def( "UltiSnip", &CompletionData::UltiSnip )
     .def_readonly( "kind_", &CompletionData::kind_ );
 
   class_< std::vector< CompletionData >,

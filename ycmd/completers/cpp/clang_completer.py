@@ -497,14 +497,20 @@ class ClangCompleter( Completer ):
       objcSelector = self._completer.ObjcSelectorFromCompletion( self._cxresult )
       if objcSelector and menu_text.startswith(objcSelector):
          menu_text = menu_text.replace( objcSelector, '' )
+
+    extra_data = {}
+    if completion_data.DocString():
+      extra_data['doc_string'] = completion_data.DocString()
+    if completion_data.UltiSnip():
+      extra_data['ulti_snip'] = completion_data.UltiSnip()
+
     return responses.BuildCompletionData(
       insertion_text = completion_data.TextToInsertInBuffer(),
       menu_text = menu_text,
       extra_menu_info = completion_data.ExtraMenuInfo(),
       kind = completion_data.kind_.name,
       detailed_info = completion_data.DetailedInfoForPreviewWindow(),
-      extra_data = ( { 'doc_string': completion_data.DocString() }
-                     if completion_data.DocString() else None ) )
+      extra_data = extra_data)
 
 
 def DiagnosticsToDiagStructure( diagnostics ):

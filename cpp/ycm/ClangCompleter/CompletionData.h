@@ -59,6 +59,9 @@ struct CompletionData {
   std::string TextToInsertInBuffer() const {
     return original_string_;
   }
+  std::string UltiSnip() const {
+    return ulti_snip_;
+  }
 
   // Currently, here we show the full function signature (without the return
   // type) if the current completion is a function or just the raw TypedText if
@@ -108,6 +111,8 @@ struct CompletionData {
   std::string original_string_;
 
   std::string everything_except_return_type_;
+  std::string ulti_snip_;
+  int ulti_snip_placeholeder_index_ = 1;
 
   std::string doc_string_;
 
